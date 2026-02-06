@@ -309,7 +309,7 @@
                         <option value="Selesai">Selesai</option>
                         <option value="Dalam Proses-Sudah Dibayar">Dalam Proses-Sudah Dibayar</option>
                         <option value="Dalam Proses-Belum Dibayar">Dalam Proses-Belum Dibayar</option>
-                        <option value="Belum dibayar">Belum dibayar</option>
+                        <option value="Belum approval">Belum approval</option>
                         <option value="Dibatalkan">Dibatalkan</option>
                     </select>
                 </div>
@@ -948,7 +948,7 @@
                         <option value="Selesai">Selesai</option>
                         <option value="Dalam Proses-Sudah Dibayar">Dalam Proses-Sudah Dibayar</option>
                         <option value="Dalam Proses-Belum Dibayar">Dalam Proses-Belum Dibayar</option>
-                        <option value="Belum dibayar">Belum dibayar</option>
+                        <option value="Belum approval">Belum approval</option>
                         <option value="Dibatalkan">Dibatalkan</option>
                     </select>
                 </div>
@@ -1117,7 +1117,7 @@ function salesTable() {
             return [...new Set(this.sales.map(s => s.periode))];
         },
         get statuses() {
-            return ['Selesai', 'Dalam Proses-Sudah Dibayar', 'Dalam Proses-Belum Dibayar', 'Belum dibayar', 'Dibatalkan'];
+            return ['Selesai', 'Dalam Proses-Sudah Dibayar', 'Dalam Proses-Belum Dibayar', 'Belum approval', 'Dibatalkan'];
         },
         get filteredStockItems() {
             const search = this.stockItemSearch.toLowerCase();
@@ -1166,7 +1166,7 @@ function salesTable() {
             if (status === 'Selesai') return 'bg-[#28C328] text-white';
             if (status === 'Dalam Proses-Sudah Dibayar') return 'bg-[#b6e388] text-[#28C328]';
             if (status === 'Dalam Proses-Belum Dibayar') return 'bg-[#ffa726] text-white';
-            if (status === 'Belum dibayar') return 'bg-[#b6e388] text-[#28C328]';
+            if (status === 'Belum approval') return 'bg-[#b6e388] text-[#28C328]';
             if (status === 'Dibatalkan') return 'bg-[#ff5c5c] text-white';
             return '';
         },
@@ -2182,7 +2182,7 @@ function salesTable() {
 
         invoiceStatusClass(status) {
             if (status === 'Selesai' || status === 'Dalam Proses-Sudah Dibayar') return 'bg-[#eafbe6] text-[#28C328]';
-            if (status === 'Dalam Proses-Belum Dibayar' || status === 'Belum dibayar') return 'bg-orange-100 text-orange-600';
+            if (status === 'Dalam Proses-Belum Dibayar' || status === 'Belum approval') return 'bg-orange-100 text-orange-600';
             if (status === 'Dibatalkan') return 'bg-red-100 text-red-600';
             return 'bg-gray-100 text-gray-600';
         },

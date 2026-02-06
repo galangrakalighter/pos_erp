@@ -28,7 +28,7 @@ return new class extends Migration
             $table->integer('total_quantity')->nullable();
             $table->integer('total_diskon')->nullable();
             $table->integer('total_harga')->nullable();
-            $table->enum('status', ['Selesai', 'Belum dibayar', 'Dibatalkan']);
+            $table->enum('status', ['Selesai', 'Belum approval', 'Dibatalkan']);
             $table->date('periode');
             $table->timestamps();
         });

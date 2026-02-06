@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\StockItem;
 use App\Models\StockItemHistory;
+use App\Models\ClientStockItem;
+use App\Models\Client;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -45,7 +47,7 @@ class StockItemImportController extends Controller
         }
 
         // Wajib minimal: nama, lokasi, tersedia, harga. Kolom sku & diperbaharui opsional.
-        $required = ['nama','lokasi','tersedia','harga'];
+        $required = ['nama','tersedia','harga'];
         foreach ($required as $col) {
             if (!in_array($col, $header)) {
                 return response()->json(['message' => "Kolom wajib '$col' tidak ditemukan di file."], 400);
@@ -60,7 +62,6 @@ class StockItemImportController extends Controller
         
         foreach ($rows as $i => $row) {
             $data = array_combine($header, $row);
-
             // Abaikan created_at & updated_at jika dikirim pada file
             if (isset($data['created_at'])) unset($data['created_at']);
             if (isset($data['updated_at'])) unset($data['updated_at']);
@@ -71,7 +72,7 @@ class StockItemImportController extends Controller
             $validator = Validator::make($data, [
                 'nama' => 'required|string|max:150',
                 'sku' => 'nullable|string|max:50',
-                'lokasi' => 'required|string|max:100',
+                'lokasi' => 'nullable|string|max:100',
                 'tersedia' => 'required|integer|min:0',
                 'harga' => 'required|integer|min:0',
                 'diperbaharui' => 'nullable|date',
@@ -92,76 +93,113 @@ class StockItemImportController extends Controller
                 if (empty($data['diperbaharui'])) {
                     $data['diperbaharui'] = now()->toDateString();
                 }
-
-                // Cek apakah item sudah ada berdasarkan nama
-                $existingItem = StockItem::where('nama', $data['nama'])->first();
-                
-                if ($existingItem) {
-                    // Merge stok: tambah jumlah, jangan overwrite
-                    $oldStock = (int) $existingItem->tersedia;
-                    $added = (int) $data['tersedia'];
-                    $newStock = $oldStock + $added;
-                    // Hanya update SKU jika sebelumnya kosong
-                    $skuToSave = $existingItem->sku ?: $data['sku'];
-                    $existingItem->update([
-                        'sku' => $skuToSave,
-                        'kategori' => $data['kategori'] ?? $existingItem->kategori,
-                        'lokasi' => $data['lokasi'],
-                        'tersedia' => $newStock,
-                        'harga' => (int) $data['harga'],
-                        'diperbaharui' => $data['diperbaharui'],
-                    ]);
+                // Admin
+                if(Auth::user()->role == "admin"){
+                    // Cek apakah item sudah ada berdasarkan nama
+                    $existingItem = StockItem::where('nama', $data['nama'])->first();
                     
-                    StockItemHistory::create([
-                        'stock_item_id' => $existingItem->id,
-                        'nama_item' => $existingItem->nama,
-                        'tersedia' => $existingItem->tersedia,
-                        'action' => 'Import Data - Merge',
-                        'changes' => [
-                            'nama' => $existingItem->nama,
-                            'sku' => $existingItem->sku,
-                            'lokasi' => $existingItem->lokasi,
-                            'tersedia_lama' => $oldStock,
-                            'ditambahkan' => $added,
-                            'tersedia_baru' => $existingItem->tersedia,
-                            'harga' => $existingItem->harga,
-                            'catatan' => 'Update dari import file',
-                        ],
-                        'user' => Auth::user()->name ?? 'Import',
-                    ]);
-                    $updated++;
-                    Log::info('Item updated', ['item_id' => $existingItem->id, 'nama' => $existingItem->nama]);
-                } else {
-                    // Buat item baru
-                    $item = StockItem::create([
-                        'nama' => $data['nama'],
-                        'sku' => $data['sku'],
-                        'kategori' => $data['kategori'] ?? 'GAFI',
-                        'kondisi' => 'Baru', // Default value untuk kondisi
-                        'lokasi' => $data['lokasi'],
-                        'tersedia' => $data['tersedia'],
-                        'disimpan' => 0, // Default value untuk disimpan
-                        'harga' => $data['harga'],
-                        'diperbaharui' => $data['diperbaharui'],
-                    ]);
-                    
-                    StockItemHistory::create([
-                        'stock_item_id' => $item->id,
-                        'nama_item' => $item->nama,
-                        'tersedia' => $item->tersedia,
-                        'action' => 'Import Data - New Item',
-                        'changes' => [
-                            'nama' => $item->nama,
-                            'sku' => $item->sku,
-                            'lokasi' => $item->lokasi,
+                    if ($existingItem) {
+                        // Merge stok: tambah jumlah, jangan overwrite
+                        $oldStock = (int) $existingItem->tersedia;
+                        $added = (int) $data['tersedia'];
+                        $newStock = $oldStock + $added;
+                        // Hanya update SKU jika sebelumnya kosong
+                        $skuToSave = $existingItem->sku ?: $data['sku'];
+                        $existingItem->update([
+                            'sku' => $skuToSave,
+                            'kategori' => $data['kategori'] ?? $existingItem->kategori,
+                            'lokasi' => $data['lokasi'],
+                            'tersedia' => $newStock,
+                            'harga' => (int) $data['harga'],
+                            'diperbaharui' => $data['diperbaharui'],
+                        ]);
+                        
+                        StockItemHistory::create([
+                            'stock_item_id' => $existingItem->id,
+                            'nama_item' => $existingItem->nama,
+                            'tersedia' => $existingItem->tersedia,
+                            'action' => 'Import Data - Merge',
+                            'changes' => [
+                                'nama' => $existingItem->nama,
+                                'sku' => $existingItem->sku,
+                                'lokasi' => $existingItem->lokasi,
+                                'tersedia_lama' => $oldStock,
+                                'ditambahkan' => $added,
+                                'tersedia_baru' => $existingItem->tersedia,
+                                'harga' => $existingItem->harga,
+                                'catatan' => 'Update dari import file',
+                            ],
+                            'user' => Auth::user()->name ?? 'Import',
+                        ]);
+                        $updated++;
+                        Log::info('Item updated', ['item_id' => $existingItem->id, 'nama' => $existingItem->nama]);
+                    } else {
+                        // Buat item baru
+                        $item = StockItem::create([
+                            'nama' => $data['nama'],
+                            'sku' => $data['sku'],
+                            'kategori' => $data['kategori'] ?? 'GAFI',
+                            'kondisi' => 'Baru', // Default value untuk kondisi
+                            'lokasi' => $data['lokasi'],
+                            'tersedia' => $data['tersedia'],
+                            'disimpan' => 0, // Default value untuk disimpan
+                            'harga' => $data['harga'],
+                            'diperbaharui' => $data['diperbaharui'],
+                        ]);
+                        
+                        StockItemHistory::create([
+                            'stock_item_id' => $item->id,
+                            'nama_item' => $item->nama,
                             'tersedia' => $item->tersedia,
-                            'harga' => $item->harga,
-                            'catatan' => 'Item baru dari import file',
-                        ],
-                        'user' => Auth::user()->name ?? 'Import',
-                    ]);
-                    $imported++;
-                    Log::info('New item created', ['item_id' => $item->id, 'nama' => $item->nama]);
+                            'action' => 'Import Data - New Item',
+                            'changes' => [
+                                'nama' => $item->nama,
+                                'sku' => $item->sku,
+                                'lokasi' => $item->lokasi,
+                                'tersedia' => $item->tersedia,
+                                'harga' => $item->harga,
+                                'catatan' => 'Item baru dari import file',
+                            ],
+                            'user' => Auth::user()->name ?? 'Import',
+                        ]);
+                        $imported++;
+                        Log::info('New item created', ['item_id' => $item->id, 'nama' => $item->nama]);
+                    }
+                }else{
+                    $existingItem = ClientStockItem::where('nama', $data['nama'])->first();
+                    $client_id = Client::where('client_id', Auth::user()->client_id)->first();
+                    if ($existingItem) {
+                        // Merge stok: tambah jumlah, jangan overwrite
+                        $oldStock = (int) $existingItem->tersedia;
+                        $added = (int) $data['tersedia'];
+                        $newStock = $oldStock + $added;
+                        // Hanya update SKU jika sebelumnya kosong
+                        $skuToSave = $existingItem->sku ?: $data['sku'];
+                        $existingItem->update([
+                            'client_id' => $client_id->id,
+                            'nama' => $data['nama'],
+                            'sku' => $skuToSave,
+                            'kategori' => "Umum",
+                            'tersedia' => $newStock,
+                            'harga' => (int) $data['harga'],
+                            'diperbaharui' => $data['diperbaharui'],
+                        ]);
+                        $updated++;
+                        Log::info('Item updated', ['item_id' => $existingItem->id, 'nama' => $existingItem->nama]);
+                    } else {
+                        // Buat item baru
+                        $item = ClientStockItem::create([
+                            'client_id' => $client_id->id,
+                            'nama' => $data['nama'],
+                            'sku' => $data['sku'],
+                            'kategori' => "Umum",
+                            'tersedia' => $data['tersedia'],
+                            'harga' => (int) $data['harga'],
+                            'diperbaharui' => $data['diperbaharui'],
+                        ]);
+                        $imported++;
+                        Log::info('New item created', ['item_id' => $item->id, 'nama' => $item->nama]);
+                    }
                 }
             } catch (\Exception $e) {
                 $errorMsg = 'Baris '.($i+2).': '.$e->getMessage();

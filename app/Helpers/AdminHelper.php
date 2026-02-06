@@ -3,7 +3,7 @@
 namespace App\Helpers;
 
 use App\Models\User;
-
+use App\Models\Client;
 class AdminHelper
 {
     /**
@@ -29,6 +29,30 @@ class AdminHelper
             'email' => $admin->email ?: 'info@gafi.co.id',
             'bank' => $admin->bank ?: 'BCA',
             'no_rekening' => $admin->no_rekening ?: '1234567890'
+        ];
+    }
+
+    public static function getClientIdentity($id)
+    {
+        $data = User::findOrFail($id);
+        $client = Client::where('client_id', $data->client_id)->first();
+        
+        if (!$client) {
+            return [
+                'telepon' => '(021) 12345678',
+                'alamat' => 'Gerbang Kuning Gudang Bumbu, Jalan Ceuri no 51 Kampung Sindang Asih, Katapang Pamentasan, Kabupaten Bandung, Jawa Barat 40921',
+                'email' => 'info@gafi.co.id',
+                'bank' => 'BCA',
+                'no_rekening' => '1234567890'
+            ];
+        }
+        
+        return [
+            'telepon' => $client->telepon ?: '(021) 12345678',
+            'alamat' => $client->alamat ?: 'Gerbang Kuning Gudang Bumbu, Jalan Ceuri no 51 Kampung Sindang Asih, Katapang Pamentasan, Kabupaten Bandung, Jawa Barat 40921',
+            'email' => $data->email ?: 'info@gafi.co.id',
+            'bank' => $data->bank ?: 'BCA',
+            'no_rekening' => $data->no_rekening ?: '1234567890'
         ];
     }
     

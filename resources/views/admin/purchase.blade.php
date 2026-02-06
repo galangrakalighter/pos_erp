@@ -166,6 +166,11 @@
                                         Payment
                                     </button>
                                 </template>
+                                <template x-if="po.status !== 'pending'">
+                                    <button @click="invoiceDetail(po)" class="text-yellow-600 hover:text-green-800 text-sm font-medium">
+                                        Invoice
+                                    </button>
+                                </template>
                                 {{-- <template x-if="po.status === 'approved' && po.payment_status === 'paid'">
                                     <button @click="markAsReceived(po.id)" class="text-orange-600 hover:text-orange-800 text-sm font-medium">
                                         Received
@@ -550,13 +555,215 @@
         </div>
     </div>
 
+    <div x-show="showDetailModalInvoice" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" x-cloak @click.self="showDetailModalInvoice = false">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-5xl mx-4 relative overflow-y-auto max-h-[80vh]" @click.stop>
+            <button @click="showDetailModalInvoice = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center justify-between bg-[#BAFFBA] rounded-t-2xl px-8 py-4">
+                        <span class="font-bold text-lg">Detail Transaksi</span>
+                    </div>
+                    <div class="w-full mt-6 bg-white rounded-b-2xl px-4">  
+                        {{-- Daftar Item Yang Pesan --}}
+                        <div class="mb-6">
+                            <div class="font-semibold mb-3 text-gray-800">Daftar Item yang Dibeli:</div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <template x-if="detailInvoice.items && detailInvoice.items.length > 0">
+                                    <div class="space-y-3">
+                                        <template x-for="(item, idx) in detailInvoice.items" :key="idx">
+                                            <div class="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 bg-[#28C328] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                                        <span x-text="idx + 1"></span>
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-semibold text-gray-800" x-text="item.item_name"></div>
+                                                        <div class="text-xs text-gray-500">SKU: <span x-text="item.sku"></span></div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <div class="text-sm text-gray-600">
+                                                        <span x-text="item.quantity"></span> x Rp<span x-text="Number(item.unit_price).toLocaleString('id-ID')"></span>
+                                                    </div>
+                                                    <div class="font-semibold text-[#28C328]">
+                                                        Rp<span x-text="Number(item.subtotal) * (item.quantity).toLocaleString('id-ID')"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template x-if="!detailInvoice.items || detailInvoice.items.length === 0">
+                                    <div class="text-center text-gray-500 py-4">
+                                        <div class="text-sm">Data item tidak tersedia</div>
+                                        <div class="text-xs">Ini mungkin transaksi lama dengan format data berbeda</div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- INVOICE -->
+                        <div class="mt-6">
+                            <!-- Header Logo & Company + Invoice Box (match PDF) -->
+                            <div class="flex items-center gap-4 border-b pb-4 mb-4 px-2">
+                                <img src="/images/logo.png" alt="Logo" class="w-16 h-16 rounded-full border object-contain bg-white">
+                                <div>
+                                    <div class="text-xs text-gray-500 font-semibold">PT Golden Aroma Food Indonesia</div>
+                                    <div class="text-xs text-gray-400 leading-snug max-w-xl">
+                                    <span class="block" x-text="(getClientAddressLines()[0] || '')"></span>
+                                        <span class="block" x-text="(getClientAddressLines()[1] || '')"></span>
+                                    </div>
+                                    <div class="text-xs text-gray-400">Telp: <span x-text="activeIdentity.phone"></span> | Email: <span x-text="activeIdentity.phone"></span></div>
+                                </div>
+                                <div class="ml-auto text-right">
+                                    <div class="text-lg font-bold text-gray-700">INVOICE</div>
+                                    <div class="text-xs text-gray-500">No. Invoice: <span x-text="getInvoiceNo(detailInvoice)"></span></div>
+                                    <div class="text-xs text-gray-500">ID Pesanan: <span x-text="detailInvoice.id_pesanan"></span></div>
+                                    <div class="text-xs text-gray-500">Tanggal: <span x-text="detailInvoice.periode"></span></div>
+                                    <div class="mt-2">
+                                        <span :class="invoiceStatusClass(detailInvoice.status)" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold" x-text="detailInvoice.status"></span>
+                                    </div>
+                                    </div>
+                            </div>
+
+                                <!-- Kepada -->
+                                <div class="mb-4">
+                                    <div class="font-semibold text-gray-700 mb-1">Kepada:</div>
+                                    <div class="p-4 bg-gray-50 rounded-lg border">
+                                        <div class="space-y-2">
+                                            <div>
+                                                <span class="text-xs text-gray-500 font-medium">Nama:</span>
+                                                <div class="font-bold text-[#28C328] text-lg" x-text="detailInvoice.nama_pemesan"></div>
+                                            </div>
+                                            <div>
+                                                <span class="text-xs text-gray-500 font-medium">ID Pesanan:</span>
+                                                <div class="text-sm text-gray-700" x-text="detailInvoice.id_pesanan"></div>
+                                            </div>
+                                            <div>
+                                                <span class="text-xs text-gray-500 font-medium">No. Telepon:</span>
+                                                <div class="text-sm text-gray-700" x-text="detailInvoice.telepon || '-'"></div>
+                                            </div>
+                                            <div>
+                                                <span class="text-xs text-gray-500 font-medium">Alamat:</span>
+                                                <div class="text-sm text-gray-700" x-text="detailInvoice.alamat || '-'"></div>
+                                            </div>
+                                            <div x-show="detailInvoice.notes || detailInvoice.nama_ekspedisi">
+                                                <span class="text-xs text-gray-500 font-medium">Catatan:</span>
+                                                <div class="text-sm text-gray-700">
+                                                    <span x-text="detailInvoice.notes || ''"></span>
+                                                    <span x-show="detailInvoice.nama_ekspedisi && detailInvoice.notes" class="ml-2">| Ekspedisi: <span x-text="detailInvoice.nama_ekspedisi"></span></span>
+                                                    <span x-show="detailInvoice.nama_ekspedisi && !detailInvoice.notes">Ekspedisi: <span x-text="detailInvoice.nama_ekspedisi"></span></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tabel Transaksi (match PDF) -->
+                                <div class="overflow-x-auto mb-4 px-2">
+                                    <template x-if="detailInvoice.items && detailInvoice.items.length > 0">
+                                        <table class="min-w-full border text-sm divide-y divide-gray-200">
+                                            <thead>
+                                                <tr class="bg-[#BAFFBA] text-gray-700">
+                                                    <th class="py-2 px-4 border-b text-left">Nama Pesanan</th>
+                                                    <th class="py-2 px-4 border-b text-left">Harga Barang</th>
+                                                    <th class="py-2 px-4 border-b text-left">Quantity</th>
+                                                    <th class="py-2 px-4 border-b text-left">Jumlah Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white">
+                                                <template x-for="(item, iidx) in detailInvoice.items" :key="iidx">
+                                                    <tr class="even:bg-gray-50">
+                                                        <td class="py-2 px-4 border-b" x-text="item.item_name"></td>
+                                                        <td class="py-2 px-4 border-b text-left font-mono" x-text="'Rp'+Number(item.unit_price).toLocaleString('id-ID')"></td>
+                                                        <td class="py-2 px-4 border-b text-left font-mono" x-text="item.quantity"></td>
+                                                        <td class="py-2 px-4 border-b text-left font-bold font-mono" x-text="'Rp'+Number(item.subtotal).toLocaleString('id-ID')"></td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                            <tfoot>
+                                                <tr class="bg-gray-50">
+                                                    <td class="py-2 px-4 border-t font-semibold text-gray-700" colspan="2">Total Quantity:</td>
+                                                    <td class="py-2 px-4 border-t text-left font-bold font-mono" x-text="detailInvoice.items ? detailInvoice.items.reduce((sum, item) => sum + (Number(item.quantity )), 0) : 0"></td>
+                                                    <td class="py-2 px-4 border-t"></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </template>
+                                    <template x-if="!detailInvoice.items || detailInvoice.items.length === 0">
+                                        <table class="min-w-full border text-sm divide-y divide-gray-200">
+                                            <thead>
+                                                <tr class="bg-[#BAFFBA] text-gray-700">
+                                                    <th class="py-2 px-4 border-b text-left">Nama Pesanan</th>
+                                                    <th class="py-2 px-4 border-b text-left">Harga Barang</th>
+                                                    <th class="py-2 px-4 border-b text-left">Quantity</th>
+                                                    <th class="py-2 px-4 border-b text-left">Jumlah Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white">
+                                                <tr class="even:bg-gray-50">
+                                                <td class="py-2 px-4 border-b" x-text="detailInvoice.item_name"></td>
+                                                    <td class="py-2 px-4 border-b text-left font-mono" x-text="'Rp'+Number(detailInvoice.unit_price || 0).toLocaleString('id-ID')"></td>
+                                                    <td class="py-2 px-4 border-b text-left font-mono" x-text="detailInvoice.quantity || 0"></td>
+                                                    <td class="py-2 px-4 border-b text-left font-bold font-mono" x-text="'Rp'+((Number(detailInvoice.unit_price || 0)*Number(detailInvoice.quantity || 0)))).toLocaleString('id-ID')"></td>
+                                                    </tr>
+                                            </tbody>
+                                            <tfoot>
+                                                <tr class="bg-gray-50">
+                                                    <td class="py-2 px-4 border-t font-semibold text-gray-700" colspan="2">Total Quantity:</td>
+                                                    <td class="py-2 px-4 border-t text-left font-bold font-mono" x-text="detailInvoice.quantity || 0"></td>
+                                                    <td class="py-2 px-4 border-t"></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </template>
+                                </div>
+
+                            <!-- Summary & Footer -->
+                            <div class="px-2">
+                                <div class="flex justify-end mb-2">
+                                    <div class="w-full md:w-1/2 lg:w-1/3">
+                                        <div class="flex justify-between text-sm text-gray-600">
+                                            <span>Subtotal</span>
+                                            <span x-text="'Rp'+Number(saleItemsSubtotal(detailInvoice)).toLocaleString('id-ID')"></span>
+                                        </div>
+                                        <div class="flex justify-between text-sm text-gray-600">
+                                            <span>Total Diskon Reguler</span>
+                                            <span x-text="saleTotalDiskon(detailInvoice) > 0 ? ('Rp'+Number(saleTotalDiskon(detailInvoice)).toLocaleString('id-ID')) : '-' "></span>
+                                        </div>
+                                        <div class="flex justify-between text-sm text-gray-600">
+                                            <span>Total Diskon Ball</span>
+                                            <span x-text="saleTotalDiskonBall(detailInvoice) > 0 ? ('Rp'+Number(saleTotalDiskonBall(detailInvoice)).toLocaleString('id-ID')) : '-' "></span>
+                                        </div>
+                                        <div class="flex justify-between text-sm text-gray-600">
+                                            <span>Total Ongkir</span>
+                                            <span x-text="formatOngkirWithExpedition(detailInvoice)"></span>
+                                        </div>
+                                        <div class="flex justify-between text-lg font-bold text-[#28C328] border-t mt-2 pt-2">
+                                            <span>Total Bayar</span>
+                                            <span x-text="'Rp'+(Number(detailInvoice.total_harga || 0)).toLocaleString('id-ID')"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-gray-500">* Invoice ini sah tanpa tanda tangan dan dicetak otomatis oleh sistem GAFI.</div>
+                                <div class="text-xs text-gray-600 mt-1">Pembayaran ke:</div>
+                                <div class="text-xs text-gray-600" x-show="getClientIdentity(detailInvoice.client_id).bank && getClientIdentity(detailInvoice.client_id).account" x-text="getClientIdentity(detailInvoice.client_id).bank + ' - ' + getClientIdentity(detailInvoice.client_id).account"></div>
+                                <button class="rounded-lg bg-[#28C328] text-white font-semibold px-6 py-2 text-sm mt-3" @click="exportInvoicePDF( detailInvoice.client_id, detailInvoice.id_pesanan)">Export PDF</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Invoice Modal -->
-    <!-- <div x-show="showInvoiceModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" x-cloak>
+    {{-- <div x-show="showInvoiceModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" x-cloak>
         <div class="bg-white rounded-2xl shadow-xl p-0 w-full max-w-2xl mx-4 relative overflow-y-auto max-h-screen">
             <button @click="showInvoiceModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold z-10">&times;</button>
-            <div class="p-8"> -->
+            <div class="p-8">
                 <!-- Header Logo & Company -->
-                <!-- <div class="flex items-center gap-4 border-b pb-4 mb-6">
+                <div class="flex items-center gap-4 border-b pb-4 mb-6">
                     <div class="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#28C328] to-yellow-500">
                         <template x-if="company.logoUrl">
                             <img :src="company.logoUrl" alt="Logo" class="w-full h-full object-cover">
@@ -581,18 +788,18 @@
                         <div class="text-xs text-gray-500">Status: <span class="font-semibold text-[#28C328]" x-text="selectedPO ? getStatusText(selectedPO.status) : ''"></span></div>
                         <div class="text-xs text-gray-500">Payment: <span class="font-semibold" :class="selectedPO && selectedPO.payment_status === 'paid' ? 'text-green-600' : 'text-orange-600'" x-text="selectedPO ? (selectedPO.payment_status === 'paid' ? 'Lunas' : 'Belum Lunas') : ''"></span></div>
                     </div>
-                </div> -->
+                </div>
 
                 <!-- Info Client -->
-                <!-- <div class="mb-6">
+                <div class="mb-6">
                     <div class="font-semibold text-gray-700">Kepada:</div>
                     <div class="font-bold text-[#28C328] text-lg" x-text="selectedPO ? selectedPO.client_name : ''"></div>
                     <div class="text-xs text-gray-500" x-text="selectedPO ? selectedPO.client_email : ''"></div>
                     <div class="text-xs text-gray-500" x-text="selectedPO ? (selectedPO.client_phone || '-') : ''"></div>
-                </div> -->
+                </div>
                 
                 <!-- Tabel Items -->
-                <!-- <div class="overflow-x-auto mb-6">
+                <div class="overflow-x-auto mb-6">
                     <table class="min-w-full border text-sm">
                         <thead>
                             <tr class="bg-[#BAFFBA] text-gray-700">
@@ -618,10 +825,10 @@
                             </template>
                         </tbody>
                     </table>
-                </div> -->
+                </div>
                 
                 <!-- Summary & Footer -->
-                <!-- <div class="flex flex-col md:flex-row md:justify-between items-start md:items-center mb-2 gap-4">
+                <div class="flex flex-col md:flex-row md:justify-between items-start md:items-center mb-2 gap-4">
                     <div class="space-y-2">
                         <div class="text-xs text-gray-500">* Purchase Order ini sah tanpa tanda tangan dan dicetak otomatis oleh sistem GAFI.</div>
                         <div class="text-sm text-gray-700">
@@ -632,12 +839,12 @@
                     <div class="text-right space-y-1">
                         <div class="text-lg font-semibold text-[#28C328]">Total PO: <span class="text-2xl font-bold">Rp<span x-text="selectedPO ? formatNumber(selectedPO.total_amount) : '0'"></span></span></div>
                     </div>
-                </div> -->
+                </div>
                 
-                <!-- <button class="rounded-lg bg-[#28C328] text-white font-semibold px-6 py-2 text-sm mt-4 w-full md:w-auto" @click="exportPOInvoicePDF">Export PDF</button> -->
-            <!-- </div>
+                <button class="rounded-lg bg-[#28C328] text-white font-semibold px-6 py-2 text-sm mt-4 w-full md:w-auto" @click="exportPOInvoicePDF">Export PDF</button>
+            </div>
         </div>
-    </div> -->
+    </div> --}}
 </div>
 
 <script>
@@ -651,8 +858,13 @@ function purchaseApproval() {
         customStartDate: '',
         customEndDate: '',
         showDetailModal: false,
+        showDetailModalInvoice: false,
+        clientIdentityCache: null,
         selectedPO: null,
+        detailInvoice: {},
         purchaseOrders: [],
+        purchaseInvoice: [],
+        activeIdentity: { phone: '', address: '', email: '', bank: '', account: '' },
         clients: [],
         // Company identity (loaded from /admin/identity)
         company: { name: '', phone: '', email: '', address: '', logoUrl: '', bank: '', no_rekening: '' },
@@ -688,7 +900,7 @@ function purchaseApproval() {
         
         get filteredPOs() {
             let pos = this.purchaseOrders;
-            
+
             if (this.search) {
                 pos = pos.filter(po => 
                     po.po_number.toLowerCase().includes(this.search.toLowerCase()) ||
@@ -715,6 +927,366 @@ function purchaseApproval() {
         viewPODetail(po) {
             this.selectedPO = po;
             this.showDetailModal = true;
+        },
+
+        async invoiceDetail(sale) {
+            try {
+                const responsebaru = await fetch(`/admin/purchase-orders/${sale.po_number}/invoice`, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+                if (responsebaru.ok) {
+                    this.purchaseInvoice = await responsebaru.json();
+                }
+            } catch (error) {
+                console.error('Error loading POs:', error);
+            }
+            console.log(this.purchaseInvoice);
+            this.detailInvoice = {...this.purchaseInvoice};
+            this.showDetailModalInvoice = true;
+        },
+
+        saleItemsSubtotal(sale) {
+            if (sale && sale.items && Array.isArray(sale.items) && sale.items.length > 0) {
+                return sale.items.reduce((total, item) => {
+                    const harga = Number(item.harga || 0);
+                    const qty = Number(item.quantity || 0);
+                    const subtotal = Number(item.subtotal || 0) || 0;
+                    return total + subtotal;
+                }, 0);
+            }
+            console.log(sale);
+            // Fallback untuk data lama
+            return (Number(sale.unit_price) || 0) * (Number(sale.quantity) || 0);
+        },
+
+        saleTotalDiskon(sale) {
+            const subtotal = this.saleItemsSubtotal(sale);
+            let totalDiskon = Number(sale && sale.total_diskon) || 0;
+            
+            if (!totalDiskon && sale) {
+                if (sale.diskon_tipe === 'rupiah') {
+                    totalDiskon = Math.min(Number(sale.diskon_nilai) || 0, subtotal);
+                } else if (sale.diskon_tipe === 'persen') {
+                    totalDiskon = Math.round(subtotal * (Number(sale.diskon_nilai) || 0) / 100);
+                }
+            }
+            return Math.min(totalDiskon, subtotal);
+        },
+
+        saleTotalDiskonBall(sale) {
+            // Gunakan nilai dari database untuk memastikan konsistensi
+            return Number(sale && sale.total_diskon_ball) || 0;
+        },
+
+        formatOngkirWithExpedition(sale) {
+            if (sale && sale.ongkir !== undefined && sale.ongkir !== null) {
+                const ongkirValue = Number(sale.ongkir);
+                if (ongkirValue > 0) {
+                    return `Rp ${ongkirValue.toLocaleString('id-ID')}`;
+                } else if (ongkirValue === 0) {
+                    return 'Free Ongkir';
+                }
+            }
+            return '-';
+        },
+
+        saleTotalOngkir(sale) {
+            return Number(sale && sale.ongkir) || 0;
+        },
+
+        async getClientIdentity(id, po_number) {
+            if(this.clientIdentityCache){
+                return this.clientIdentityCache;
+            }
+
+            // Default values
+            const defaultIdentity = {
+                phone: '(021) 12345678',
+                address: 'Gerbang Kuning Gudang Bumbu, Jalan Ceuri no 51 Kampung Sindang Asih, Katapang, Pamentasan, Kabupaten Bandung, Jawa Barat 40921',
+                email: 'info@gafi.co.id',
+                bank: 'BCA',
+                account: '1234567890'
+            };
+            
+            const response = await fetch(`/client/identity/${id}/${po_number}`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            });
+            
+            if(response.ok){
+                // WAJIB gunakan 'await' untuk .json()
+                const data = await response.json();
+                this.clientIdentityCache = data; // Simpan ke cache
+            }
+
+            const identity = {
+                phone: this.clientIdentityCache.phone,
+                address: this.clientIdentityCache.address,
+                email: this.clientIdentityCache.email,
+                bank: this.clientIdentityCache.bank,
+                account: this.clientIdentityCache.rekening,
+                id_pesanan: this.clientIdentityCache.id_pesanan,
+                periode: this.clientIdentityCache.periode,
+                status: this.clientIdentityCache.status,
+                account: this.clientIdentityCache.account
+            }
+            this.activeIdentity = identity;
+            return this.activeIdentity;
+        },
+
+        async exportInvoicePDF(id, po_number) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 40;
+            const headerHeight = 120;
+            const adminIdent = await this.getClientIdentity(id, po_number);
+            const detail = this.detailInvoice || {};
+            const fallbackAddress = 'Gerbang Kuning Gudang Bumbu, Jalan Ceuri no 51 Kampung Sindang Asih, Katapang, Pamentasan, Kabupaten Bandung, Jawa Barat 40921';
+            const address = adminIdent.address || fallbackAddress;
+            const paymentBank = adminIdent.bank || '-';
+            const paymentAccount = adminIdent.account || '-';
+            const formatCurrency = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+
+            const loadImage = async (src) => {
+                if (!src) return null;
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => resolve(img);
+                    img.onerror = () => resolve(null);
+                    img.src = src;
+                });
+            };
+
+            let logoImage = null;
+            const logoCandidates = [adminIdent.logo_url, window.location.origin + '/images/logo.png'];
+            for (const src of logoCandidates) {
+                logoImage = await loadImage(src);
+                if (logoImage) break;
+            }
+
+            const drawHeader = (pageNumber) => {
+                if (logoImage) {
+                    doc.addImage(logoImage, 'PNG', margin, margin, 48, 48);
+                } else {
+                    doc.setFont(undefined, 'bold');
+                    doc.setFontSize(20);
+                    doc.setTextColor(40, 195, 40);
+                    doc.text('GAFI', margin + 24, margin + 28, { align: 'center' });
+                }
+
+                doc.setTextColor(60);
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('PT Golden Aroma Food Indonesia', margin + 60, margin + 12);
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                const addrLines = doc.splitTextToSize(address, 220);
+                doc.text(addrLines, margin + 60, margin + 28);
+                const contactY = margin + 28 + addrLines.length * 12;
+                const contactParts = [
+                    `Telp: ${adminIdent.phone || '(021) 12345678'}`,
+                    `Email: ${adminIdent.email || 'info@gafi.co.id'}`
+                ];
+                doc.text(contactParts.join('  |  '), margin + 60, contactY);
+
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('INVOICE', pageWidth - margin, margin + 12, { align: 'right' });
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                const metaY = margin + 28;
+                doc.text(`No. Invoice: ${this.getInvoiceNo(detail) || '-'}`, pageWidth - margin, metaY, { align: 'right' });
+                doc.text(`ID Pesanan: ${detail.id_pesanan || '-'}`, pageWidth - margin, metaY + 14, { align: 'right' });
+                doc.text(`Tanggal: ${detail.periode || detail.tanggal || '-'}`, pageWidth - margin, metaY + 28, { align: 'right' });
+                doc.text(`Status: ${detail.status || '-'}`, pageWidth - margin, metaY + 42, { align: 'right' });
+
+                doc.setDrawColor(230);
+                doc.line(margin, margin + headerHeight, pageWidth - margin, margin + headerHeight);
+            };
+
+            const drawFooter = (pageNumber) => {
+                doc.setFontSize(9);
+                doc.setTextColor(130);
+                doc.text(`Halaman ${pageNumber}`, margin, pageHeight - 25);
+            };
+
+            const recipientStartY = margin + headerHeight + 18;
+            let currentY = recipientStartY;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(55, 120, 70);
+            doc.text('Kepada:', margin, currentY);
+            currentY += 14;
+
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(60);
+            doc.text(detail.nama_pemesan || '-', margin, currentY);
+            currentY += 12;
+            doc.text(`ID Pesanan: ${detail.id_pesanan || '-'}`, margin, currentY);
+            currentY += 12;
+            doc.text(`Telepon: ${detail.telepon || '-'}`, margin, currentY);
+            currentY += 12;
+            const alamatLines = doc.splitTextToSize(`Alamat: ${detail.alamat || '-'}`, pageWidth - margin * 2);
+            doc.text(alamatLines, margin, currentY);
+            currentY += alamatLines.length * 12;
+            doc.text(`Sales: ${detail.nama_sales || '-'}`, margin, currentY + 8);
+            currentY += 20;
+
+            const extraNotes = [];
+            if (detail.notes) extraNotes.push(detail.notes);
+            if (detail.nama_ekspedisi) extraNotes.push(`Ekspedisi: ${detail.nama_ekspedisi}`);
+            if (extraNotes.length) {
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(180, 130, 0);
+                doc.text('Catatan:', margin, currentY);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(90);
+                const noteLines = doc.splitTextToSize(extraNotes.join(' | '), pageWidth - margin * 2);
+                doc.text(noteLines, margin, currentY + 12);
+                currentY += 12 + noteLines.length * 12;
+            }
+
+            const hasItems = Array.isArray(detail.items) && detail.items.length > 0;
+            const itemsSubtotal = this.saleItemsSubtotal(detail);
+            const totalDiskon = this.saleTotalDiskon(detail);
+            const totalDiskonBall = this.saleTotalDiskonBall(detail);
+            const totalOngkir = this.saleTotalOngkir(detail);
+
+            let totalQuantity = 0;
+            const rows = hasItems
+                ? detail.items.map(item => {
+                    const harga = Number(item.unit_price || 0);
+                    const qty = Number(item.quantity || 0);
+                    const subtotal = Number(harga * qty) || 0;
+                    totalQuantity += qty;
+                    return [
+                        String(item.item_name || ''),
+                        formatCurrency(harga),
+                        String(qty),
+                        formatCurrency(subtotal)
+                    ];
+                })
+                : (() => {
+                    const harga = Number(detail.unit_price || 0);
+                    const qty = Number(detail.quantity || 0);
+                    const subtotal = harga * qty;
+                    totalQuantity = qty;
+                    return [[String(detail.nama_pesanan || detail.id_pesanan || ''), formatCurrency(harga), String(qty), formatCurrency(subtotal - Number(totalDiskon || 0))]];
+                })();
+
+            doc.autoTable({
+                head: [['Nama Pesanan', 'Harga Barang', 'Quantity', 'Jumlah Total']],
+                body: rows,
+                foot: [['Total Quantity', '', String(totalQuantity), '']],
+                startY: currentY + 16,
+                margin: { left: margin, right: margin, top: margin + headerHeight + 15, bottom: 80 },
+                styles: { 
+                    fontSize: 9, 
+                    cellPadding: 6, 
+                    valign: 'middle' // Menjaga teks di tengah secara vertikal
+                },
+                headStyles: { fillColor: [186, 255, 186], textColor: 60, fontStyle: 'bold', halign: 'center' }, // Header ikut rata tengah
+                footStyles: { fillColor: [240, 240, 240], textColor: 60, fontStyle: 'bold' },
+                columnStyles: {
+                    0: { halign: 'left' },   // Nama Pesanan rata kiri
+                    1: { halign: 'center' }, // Harga Barang JADI TENGAH
+                    2: { halign: 'center' }, // Quantity TETAP TENGAH
+                    3: { halign: 'center' }   // Jumlah Total rata kanan (biasanya untuk mata uang)
+                },
+                didDrawPage: (data) => {
+                    drawHeader(data.pageNumber);
+                    drawFooter(data.pageNumber);
+                }
+            });
+
+            let summaryStartY = doc.lastAutoTable.finalY + 20;
+            const ensureSpace = () => {
+                if (summaryStartY + 120 > pageHeight - margin) {
+                    doc.addPage();
+                    const { pageNumber } = doc.internal.getCurrentPageInfo();
+                    drawHeader(pageNumber);
+                    drawFooter(pageNumber);
+                    summaryStartY = margin + headerHeight + 20;
+                }
+            };
+
+            ensureSpace();
+
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(60);
+            doc.text('Subtotal', pageWidth - margin - 120, summaryStartY, { align: 'right' });
+            doc.text(formatCurrency(itemsSubtotal), pageWidth - margin, summaryStartY, { align: 'right' });
+            summaryStartY += 14;
+
+            if (totalDiskon > 0) {
+                doc.text('Diskon Reguler', pageWidth - margin - 120, summaryStartY, { align: 'right' });
+                doc.text(`- ${formatCurrency(totalDiskon)}`, pageWidth - margin, summaryStartY, { align: 'right' });
+                summaryStartY += 14;
+            }
+
+            if (totalDiskonBall > 0) {
+                doc.text('Diskon Ball', pageWidth - margin - 120, summaryStartY, { align: 'right' });
+                doc.text(`- ${formatCurrency(totalDiskonBall)}`, pageWidth - margin, summaryStartY, { align: 'right' });
+                summaryStartY += 14;
+            }
+
+            if (totalOngkir !== undefined && totalOngkir !== null) {
+                doc.text('Ongkir', pageWidth - margin - 120, summaryStartY, { align: 'right' });
+                const ongkirText = totalOngkir > 0 ? `+ ${formatCurrency(totalOngkir)}` : 'Free Ongkir';
+                doc.text(ongkirText, pageWidth - margin, summaryStartY, { align: 'right' });
+                summaryStartY += 14;
+            }
+
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(40, 195, 40);
+            doc.text('Total Bayar', pageWidth - margin - 120, summaryStartY + 6, { align: 'right' });
+            doc.setFontSize(16);
+            doc.text(formatCurrency(detail.total_harga || detail.total_amount || 0), pageWidth - margin, summaryStartY + 6, { align: 'right' });
+            summaryStartY += 32;
+
+            ensureSpace();
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(120);
+            doc.text('* Invoice ini sah tanpa tanda tangan dan dicetak otomatis oleh sistem GAFI.', margin, summaryStartY);
+            doc.text(`Pembayaran ke: ${paymentBank} - ${paymentAccount}`, margin, summaryStartY + 14);
+
+            doc.save(`invoice_${detail.id_pesanan || detail.order_number || 'gafi'}.pdf`);
+        },
+
+        getClientAddressLines() {
+            const addr = (this.activeIdentity.address || 'Gerbang Kuning Gudang Bumbu, Jalan Ceuri no 51 Kampung Sindang Asih, Katapang, Pamentasan, Kabupaten Bandung, Jawa Barat 40921');
+            // Split into ~3 lines for layout consistency
+            const parts = String(addr).split(',').map(s => s.trim());
+            return [
+                parts.slice(0, 3).join(', '),
+                parts.slice(3, 6).join(', '),
+                parts.slice(6).join(', ')
+            ];
+        },
+
+        getInvoiceNo(sale) {
+            try {
+                const d = sale && sale.periode ? new Date(sale.periode) : new Date();
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const id = String((sale && (sale.id_pesanan || sale.id)) || '0001').replace(/\s+/g, '');
+                return `INV-${y}${m}-${id}`;
+            } catch (_) {
+                return `INV-${Date.now()}`;
+            }
         },
         
         async approvePO(poId) {

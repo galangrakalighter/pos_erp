@@ -60,10 +60,21 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 20h9" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                     PDF
                 </button>
-                <button class="rounded-lg bg-[#28C328] px-4 py-2 text-white text-sm font-semibold flex items-center gap-2 hover:bg-[#22a322] transition" @click="showAddModal = true">
+                {{-- <button class="rounded-lg bg-[#28C328] px-4 py-2 text-white text-sm font-semibold flex items-center gap-2 hover:bg-[#22a322] transition" @click="showAddModal = true">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                     Tambahkan Item
-                </button>
+                </button> --}}
+                <div class="relative">
+                    <button class="rounded-lg bg-[#28C328] px-4 py-2 text-white text-sm font-semibold flex items-center gap-2 hover:bg-[#22a322] transition" @click="showAddDropdown = !showAddDropdown">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        Tambahkan Item
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="showAddDropdown" @click.away="showAddDropdown = false" class="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-lg border border-gray-100 z-10">
+                        <button @click="showAddModal = true; showAddDropdown = false" class="block w-full text-left px-4 py-2 hover:bg-[#eafbe6] rounded-t-xl">Input Manual</button>
+                        <button @click="showImportModal = true; showAddDropdown = false" class="block w-full text-left px-4 py-2 hover:bg-[#eafbe6] rounded-b-xl">Import Data</button>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- Loading removed for cleaner UX -->
@@ -846,6 +857,46 @@
             </div>
         </div>
     </div>
+
+    <div x-show="showImportModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" x-cloak @click.self="showImportModal = false">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md mx-4 relative" @click.stop>
+            <button @click="showImportModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-[#28C328]">Import Data Stok</h2>
+                <p class="text-gray-600 text-sm">Upload file CSV atau Excel untuk menambah banyak item sekaligus.</p>
+            </div>
+
+            <form @submit.prevent="submitImportForm">
+                <div class="mb-4">
+                    <input type="file" accept=".csv, .xlsx, .xls" @change="onImportFileChange($event)" class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg p-2" />
+                </div>
+
+                <div class="mb-4">
+                    <a href="{{ asset('public/excel/template_partner.xlsx') }}" download class="flex items-center justify-center gap-2 w-full py-2 px-4 border border-[#28C328] text-[#28C328] rounded-lg text-xs font-semibold hover:bg-[#f0fff0] transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="Status 4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Template Excel
+                    </a>
+                </div>
+
+                <div class="mb-4 text-xs text-gray-500 bg-gray-50 rounded p-3 border border-gray-100">
+                    <div class="font-semibold text-gray-700 mb-1">Format file yang didukung:</div>
+                    <div class="mb-1">Kolom wajib: <span class="font-mono text-[10px] bg-white px-1 border border-gray-200">nama, sku, lokasi, tersedia, harga, diperbaharui</span></div>
+                    <div class="text-gray-400 italic italic text-[10px]">Gunakan template di atas untuk menghindari error format.</div>
+                </div>
+
+                <div class="flex gap-2 mt-4">
+                    <button type="submit" :disabled="!importFile" class="flex-1 rounded-lg bg-[#28C328] text-white font-semibold py-2 hover:bg-[#22a322] transition disabled:opacity-50 disabled:cursor-not-allowed">Import</button>
+                    <button type="button" @click="showImportModal = false" class="flex-1 rounded-lg bg-gray-200 text-gray-700 font-semibold py-2 hover:bg-gray-300 transition">Batal</button>
+                </div>
+
+                <div x-show="importErrorMsg" class="text-red-500 text-xs mt-2" x-text="importErrorMsg"></div>
+                <div x-show="importSuccessMsg" class="text-green-600 text-xs mt-2" x-text="importSuccessMsg"></div>
+            </form>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -866,6 +917,7 @@ function stockTable() {
         currentPage: 1,
         perPage: 10,
         showAddModal: false,
+        showAddDropdown: false,
         openActionMenuIndex: null,
         sortKey: '',
         sortAsc: true,
@@ -949,6 +1001,58 @@ function stockTable() {
                 if (valA > valB) return this.sortAsc ? 1 : -1;
                     return 0;
                 });
+        },
+        showImportModal: false,
+        importFile: null,
+        importErrorMsg: '',
+        importSuccessMsg: '',
+        onImportFileChange(e) {
+            this.importFile = e.target.files[0] || null;
+            this.importErrorMsg = '';
+            this.importSuccessMsg = '';
+        },
+
+        async submitImportForm() {
+            if (!this.importFile) {
+                this.importErrorMsg = 'Pilih file terlebih dahulu.';
+                return;
+            }
+            this.importErrorMsg = '';
+            this.importSuccessMsg = '';
+            const formData = new FormData();
+            formData.append('file', this.importFile);
+            try {
+                const res = await fetch('/client/stock-items/import', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: formData
+                });
+                const result = await res.json();
+                if (!res.ok) {
+                    this.importErrorMsg = result.message || 'Gagal import data.';
+                    if (result.errors && result.errors.length > 0) {
+                        this.importErrorMsg += ' Errors: ' + result.errors.join(', ');
+                    }
+                    return;
+                }
+                
+                // Tampilkan hasil import yang detail
+                let successMsg = result.message || 'Import berhasil!';
+                if (result.imported > 0 || result.updated > 0) {
+                    successMsg = `Import selesai! ${result.imported || 0} item baru ditambahkan, ${result.updated || 0} item diperbarui.`;
+                }
+                if (result.errors && result.errors.length > 0) {
+                    successMsg += ` Ada ${result.errors.length} error: ` + result.errors.join(', ');
+                }
+                
+                this.importSuccessMsg = successMsg;
+                this.showImportModal = false;
+                this.importFile = null;
+                window.location.reload();
+                await this.fetchItems();
+            } catch (e) {
+                this.importErrorMsg = 'Gagal terhubung ke server.';
+            }
         },
 
         get paginatedItems() {

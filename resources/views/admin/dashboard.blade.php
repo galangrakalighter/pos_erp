@@ -752,26 +752,47 @@
     <div x-show="showImportModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" x-cloak @click.self="showImportModal = false">
         <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md mx-4 relative" @click.stop>
             <button @click="showImportModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            
             <div class="text-center mb-6">
                 <h2 class="text-xl font-bold text-[#28C328]">Import Data Stok</h2>
                 <p class="text-gray-600 text-sm">Upload file CSV atau Excel untuk menambah banyak item sekaligus.</p>
             </div>
+
             <form @submit.prevent="submitImportForm">
-                <div class="mb-4">
-                    <input type="file" accept=".csv, .xlsx, .xls" @change="onImportFileChange($event)" class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg p-2" />
+                <div class="mb-3">
+                    <label class="block text-xs font-semibold text-gray-500 mb-1 ml-1">Pilih File</label>
+                    <input type="file" accept=".csv, .xlsx, .xls" @change="onImportFileChange($event)" class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg p-2 focus:ring-1 focus:ring-[#28C328] outline-none" />
                 </div>
-                <div class="mb-4 text-xs text-gray-500 bg-gray-50 rounded p-2">
-                    <div class="font-semibold text-gray-700 mb-1">Format file yang didukung:</div>
-                    <div>Kolom wajib: <span class="font-mono">nama, sku, lokasi, tersedia, harga, diperbaharui</span></div>
-                    <div>Contoh header CSV/Excel: <span class="font-mono">nama,sku,lokasi,tersedia,harga,diperbaharui</span></div>
-                    <div>Contoh baris: <span class="font-mono">Bumbu Cabai,BC201,Rak1,10,10000,2025-09-03</span></div>
+
+                <div class="mb-5">
+                    <a href="{{ asset('public/excel/template_admin.xlsx') }}" download class="flex items-center justify-center gap-2 w-full py-2 px-4 border border-dashed border-[#28C328] text-[#28C328] rounded-lg text-xs font-bold hover:bg-green-50 transition-all group">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform group-hover:translate-y-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="Status 4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        UNDUH TEMPLATE EXCEL
+                    </a>
                 </div>
-                <div class="flex gap-2 mt-4">
-                    <button type="submit" :disabled="!importFile" class="flex-1 rounded-lg bg-[#28C328] text-white font-semibold py-2 hover:bg-[#22a322] transition disabled:opacity-50 disabled:cursor-not-allowed">Import</button>
-                    <button type="button" @click="showImportModal = false" class="flex-1 rounded-lg bg-gray-200 text-gray-700 font-semibold py-2 hover:bg-gray-300 transition">Batal</button>
+
+                <div class="mb-4 text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-xl p-3">
+                    <div class="font-bold text-gray-700 mb-2 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Panduan Format:
+                    </div>
+                    <div class="space-y-1">
+                        <p>• Kolom wajib: <span class="font-mono text-red-500">nama, sku, lokasi, tersedia, harga, diperbaharui</span></p>
+                        <p>• Pastikan header (baris pertama) sama persis dengan template.</p>
+                    </div>
                 </div>
-                <div x-show="importErrorMsg" class="text-red-500 text-xs mt-2" x-text="importErrorMsg"></div>
-                <div x-show="importSuccessMsg" class="text-green-600 text-xs mt-2" x-text="importSuccessMsg"></div>
+
+                <div class="flex gap-2 mt-6">
+                    <button type="submit" :disabled="!importFile" class="flex-1 rounded-lg bg-[#28C328] text-white font-bold py-2.5 hover:bg-[#22a322] shadow-md shadow-green-100 transition disabled:opacity-50 disabled:cursor-not-allowed uppercase text-sm">Import</button>
+                    <button type="button" @click="showImportModal = false" class="flex-1 rounded-lg bg-gray-100 text-gray-600 font-bold py-2.5 hover:bg-gray-200 transition uppercase text-sm">Batal</button>
+                </div>
+
+                <div x-show="importErrorMsg" class="text-red-500 text-xs mt-3 text-center font-medium" x-text="importErrorMsg"></div>
+                <div x-show="importSuccessMsg" class="text-green-600 text-xs mt-3 text-center font-medium" x-text="importSuccessMsg"></div>
             </form>
         </div>
     </div>

@@ -10,6 +10,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Models\Client;
+use App\Models\ClientStockItem;
+use App\Models\Sale;
+use App\Models\User;
 
 class PurchaseOrderController extends Controller
 {
@@ -109,6 +113,8 @@ class PurchaseOrderController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $client = Client::where('client_id', Auth::user()->client_id)->first();
+
         try {
             DB::beginTransaction();
             $purchaseOrder = PurchaseOrder::create([
@@ -119,7 +125,12 @@ class PurchaseOrderController extends Controller
                 'payment_status' => 'unpaid',
             ]);
 
+            $totalItems = 0;
+            $totalHarga = 0;
+
             foreach ($request->items as $itemData) {
+                $totalItems += $itemData['quantity'];
+                $totalHarga += $itemData['subtotal'];
                 PurchaseOrderItem::create([
                     'purchase_order_id' => $purchaseOrder->id,
                     'stock_item_id' => $itemData['item_type'] === 'stock' ? $itemData['stock_item_id'] : null,
@@ -131,6 +142,40 @@ class PurchaseOrderController extends Controller
                     'item_type' => $itemData['item_type'],
                 ]);
             }
+
+            $sale = Sale::create([
+                'nama_pemesan' => $client->nama,
+                'id_pesanan' => $request->po_number,
+                'nama_sales' => $client->nama_sales,
+                'jenis_transaksi' => $request->payment_method,
+                'telepon' => $client->telepon,
+                'alamat' => $client->alamat,
+                'diskon_tipe' => 'rupiah',
+                'diskon_nilai' => 0,
+                'diskon_ball_tipe' => 'rupiah',
+                'diskon_ball_nilai' => 0.00,
+                'nama_ekspedisi' => null,
+                'ongkir' => 0.00,
+                'notes' => null,
+                'total_diskon_ball' => 0.00,
+                'total_quantity' => $totalItems,
+                'total_diskon' => 0,
+                'total_harga' => $totalHarga,
+                'status' => 'Belum approval',
+                'periode' => now()->format('Y-m-d')
+            ]);
+
+            foreach ($request->items as $itemData) {
+                DB::table('sale_items')->insert([
+                    'sale_id' => $sale->id,
+                    'stock_item_id' => $itemData['item_type'] === 'stock' ? $itemData['stock_item_id'] : null,
+                    'quantity' => $itemData['quantity'],
+                    'harga' => $itemData['unit_price'],
+                    'subtotal' => $itemData['subtotal'],
+                ]);
+            }
+
+
 
             DB::commit();
 
@@ -197,21 +242,77 @@ class PurchaseOrderController extends Controller
         return response()->json($purchaseOrders);
     }
 
+    public function clientIdentity($id, $po_number): JsonResponse
+    {
+        $data = User::findOrFail($id);
+        $client = Client::where('client_id', $data->client_id)->first();
+        $purchaseOrder = PurchaseOrder::where('client_id', $data->id)->where('po_number', $po_number)->first();
+        $sale = Sale::where('id_pesanan', $po_number)->first();
+        $result = [
+            "phone" => $client->telepon,
+            "email" => $data->email,
+            "address" => $client->alamat,
+            "bank" => $data->bank,
+            "rekening" => $data->no_rekening,
+            "id_pesanan" => $po_number,
+            "periode" => $sale->periode,
+            "status" => $purchaseOrder->status,
+            "account" => $data->no_rekening
+        ];
+        return response()->json($result);
+    }
+
     /**
      * Approve a purchase order.
      */
     public function approve($id): JsonResponse
     {
         $purchaseOrder = PurchaseOrder::findOrFail($id);
-
+        
         if ($purchaseOrder->status !== 'pending') {
             return response()->json(['error' => 'Only pending purchase orders can be approved'], 400);
         }
 
         $purchaseOrder->update(['status' => 'approved']);
+    
+        Sale::where('id_pesanan', $purchaseOrder->po_number)->update([
+            'status' => 'Dalam Proses-Belum Dibayar'
+        ]);
 
         return response()->json(['message' => 'Purchase order approved successfully']);
     }
+
+    public function invoice($id): JsonResponse
+    {
+        $data = PurchaseOrder::where('po_number', $id)->first();
+
+        $items = PurchaseOrderItem::where('purchase_order_id', $data->id)->get();
+        
+        $periode = Sale::where('id_pesanan', $data->po_number)->first();
+
+        $user = User::findOrFail($data->client_id);
+
+        $clients = Client::where('client_id', $user->client_id)->first();
+        $result = [
+            "nama_pemesan" => $clients->nama,
+            "client_id" => $data->client_id,
+            "items" => $items,
+            "id_pesanan" => $data->po_number,
+            "periode" => $periode->periode,
+            "telepon" => $clients->telepon,
+            "alamat" => $user->alamat,
+            "ongkir" => $clients->ongkir,
+            "total_diskon" => $periode->total_diskon,
+            "diskon_nilai" => $periode->diskon_nilai,
+            "total_harga" => $data->total_amount,
+            "status" => $data->status,
+            "nama_sales" => $clients->nama_sales
+        ];
+
+        return response()->json($result);
+    }
+
+
 
     /**
      * Mark purchase order as paid.
@@ -230,6 +331,10 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrder->update(['payment_status' => 'paid']);
 
+        Sale::where('id_pesanan', $purchaseOrder->po_number)->update([
+            'status' => 'Dalam Proses-Sudah Dibayar'
+        ]);
+
         return response()->json(['message' => 'Purchase order marked as paid successfully']);
     }
 
@@ -239,6 +344,8 @@ class PurchaseOrderController extends Controller
 public function markAsReceived($id): JsonResponse
     {
         $purchaseOrder = PurchaseOrder::findOrFail($id);
+        $user = User::findorFail($purchaseOrder->client_id);
+        $client = Client::where('client_id', $user->client_id)->first();
 
         if ($purchaseOrder->status !== 'approved') {
             return response()->json(['error' => 'Only approved purchase orders can be marked as received'], 400);
@@ -255,7 +362,22 @@ public function markAsReceived($id): JsonResponse
         foreach($purchaseOrderItems as $po_items){
             StockItem::where('sku', $po_items->sku)
             ->decrement('tersedia', $po_items->quantity);
+            
+            ClientStockItem::create([
+                "client_id" => $client->id,
+                "nama" => $po_items->item_name,
+                "sku" => $po_items->sku,
+                "kategori" => "Umum",
+                "tersedia" => $po_items->quantity,
+                "harga" => $po_items->unit_price,
+                "diperbaharui" => date('Y-m-d')
+            ]);
         }
+
+        Sale::where('id_pesanan', $purchaseOrder->po_number)->update([
+            'status' => 'Selesai'
+        ]);
+
 
         return response()->json(['message' => 'Purchase order marked as received successfully']);
     }

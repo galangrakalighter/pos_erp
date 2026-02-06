@@ -386,6 +386,14 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal PO</label>
                                 <input type="text" x-model="poDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" readonly>
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Pembayaran</label>
+                                <select x-model="poType" @change="handlePaymentChange($event.target.value)" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-[#28C328] focus:border-[#28C328] outline-none transition-all">
+                                    <option value="" disabled>Pilih Tipe Pembayaran</option>
+                                    <option value="Tunai">Tunai</option>
+                                    <option value="Transfer">Transfer</option>
+                                </select>
+                            </div>
                         </div>
 
                         <!-- Selected Items -->
@@ -952,6 +960,7 @@ function purchaseOrder() {
         // Form data
         poNumber: '',
         poDate: '',
+        poType: '',
         totalAmount: 0,
         
         // External item form
@@ -1060,6 +1069,10 @@ function purchaseOrder() {
             const day = String(now.getDate()).padStart(2, '0');
             const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
             this.poNumber = `PO-${year}${month}${day}-${random}`;
+        },
+
+        handlePaymentChange(val){
+            this.poType = val;
         },
         
         setPODate() {
@@ -1187,20 +1200,27 @@ function purchaseOrder() {
         },
         
         addItemToPO(item) {
-            if(item.tersedia <= 0){
+            if (item.tersedia <= 0) {
                 alert('Barang Sudah Habis');
                 return;
             }
+
             const existingItem = this.selectedItems.find(i => i.id === item.id);
+
             if (existingItem) {
-                existingItem.quantity += 1;
+                let currentQty = Number(existingItem.quantity);
+                if (currentQty < item.tersedia) {
+                    existingItem.quantity = currentQty + 1;
+                } else {
+                    alert("Stock Tidak Mencukupi");
+                }
             } else {
                 this.selectedItems.push({
                     id: item.id,
                     nama: item.nama,
                     sku: item.sku,
                     harga: item.harga,
-                    quantity: 1,
+                    quantity: 1, // Default angka
                     item_type: 'stock'
                 });
             }
@@ -1219,8 +1239,24 @@ function purchaseOrder() {
         },
         
         async submitPO() {
-            if (this.selectedItems.length === 0) return;
+            if(this.poType == ""){
+                alert("Harap Pilih Metode Pembayaran");
+                return;
+            }
             
+            if (this.selectedItems.length === 0) return;
+
+            this.selectedItems.forEach(element => {
+                let data = this.availableItems;
+                data.forEach(data1 => {
+                    const existingItem = this.selectedItems.find(i => i.id === data1.id);
+                    if(existingItem && Number(existingItem.quantity) > data1.tersedia){
+                        alert("Stock Yang Dipesan Melebihi Stock Yang Ada")
+                        return;
+                    }
+                });
+            });
+
             try {
                 const poData = {
                     po_number: this.poNumber,
@@ -1235,7 +1271,8 @@ function purchaseOrder() {
                     })),
                     total_amount: parseFloat(this.totalAmount),
                     status: 'pending',
-                    payment_status: 'unpaid'
+                    payment_status: 'unpaid',
+                    payment_method: this.poType
                 };
                 
                 const response = await fetch('/client/purchase-orders', {

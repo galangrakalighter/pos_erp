@@ -136,7 +136,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('/client/purchase-orders', [\App\Http\Controllers\PurchaseOrderController::class, 'store'])->name('client.purchase-orders.store');
     Route::put('/client/purchase-orders/{id}/cancel', [\App\Http\Controllers\PurchaseOrderController::class, 'cancel'])->name('client.purchase-orders.cancel');
     Route::delete('/client/purchase-orders/{id}', [\App\Http\Controllers\PurchaseOrderController::class, 'destroy'])->name('client.purchase-orders.destroy');
-    
+
     // Admin Purchase Order Routes
     Route::get('/admin/purchase-orders', onlyAdmin(function () {
         return app(\App\Http\Controllers\PurchaseOrderController::class)->adminIndex();
@@ -144,6 +144,9 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::put('/admin/purchase-orders/{id}/approve', onlyAdmin(function ($id) {
         return app(\App\Http\Controllers\PurchaseOrderController::class)->approve($id);
     }))->name('admin.purchase-orders.approve');
+    Route::put('/admin/purchase-orders/{id}/invoice', onlyAdmin(function ($id) {
+        return app(\App\Http\Controllers\PurchaseOrderController::class)->invoice($id);
+    }))->name('admin.purchase-orders.invoice');
     Route::put('/admin/purchase-orders/{id}/reject', onlyAdmin(function ($id) {
         return app(\App\Http\Controllers\PurchaseOrderController::class)->reject($id);
     }))->name('admin.purchase-orders.reject');
@@ -223,8 +226,18 @@ Route::middleware(['auth', 'web'])->group(function () {
         return app(\App\Http\Controllers\PurchaseOrderController::class)->markAsReceived($id);
     })->name('admin.purchase-orders.received');
 
+    Route::post('/client/stock-items/import', function () {
+        return app(\App\Http\Controllers\StockItemImportController::class)->import(request());
+    });
     
+    Route::post('/client/identity/{id}/{po_number}', function ($id, $po) {
+        return app(\App\Http\Controllers\PurchaseOrderController::class)->clientIdentity($id, $po);
+    });
     
+    Route::post('/client/purchase-orders/{id}/getstock', onlyAdmin(function ($id) {
+        return app(\App\Http\Controllers\PurchaseOrderController::class)->getStock($id);
+    }))->name('client.purchase-orders.getStock');
+
     Route::post('/client/stock-items', function () {
         return app(\App\Http\Controllers\ClientStockController::class)->store(request());
     })->name('client.stock-items.store');
@@ -662,12 +675,12 @@ Route::get('/admin/overview-data', function (Request $request) {
             'lowStockCount' => \App\Models\StockItem::where('tersedia', '<=', $lowStockThreshold)->count(),
             'txInRange' => $allSales->count() + $allClientItems->count(),
             'revenueInRange' => $totalOmzet,
-            'unpaidCount' => \App\Models\Sale::whereIn('status', ['Belum dibayar', 'Dalam Proses-Belum Dibayar'])->count()
+            'unpaidCount' => \App\Models\Sale::whereIn('status', ['Belum approval', 'Dalam Proses-Belum Dibayar'])->count()
         ]
     ]);
 
     // Ambil pending payments (status belum dibayar)
-    $pendingPayments = \App\Models\Sale::whereIn('status', ['Belum dibayar', 'Dalam Proses-Belum Dibayar'])
+    $pendingPayments = \App\Models\Sale::whereIn('status', ['Belum approval', 'Dalam Proses-Belum Dibayar'])
         ->orderBy('created_at', 'desc')
         ->limit(5)
         ->get()
@@ -745,7 +758,7 @@ Route::get('/admin/overview-data', function (Request $request) {
     $txInRange = $allSales->count() + $allClientItems->count();
     
     // Unpaid count
-    $unpaidCount = \App\Models\Sale::whereIn('status', ['Belum dibayar', 'Dalam Proses-Belum Dibayar'])->count();
+    $unpaidCount = \App\Models\Sale::whereIn('status', ['Belum approval', 'Dalam Proses-Belum Dibayar'])->count();
     
     // Low stock items dengan threshold yang bisa diubah
     $lowStockItems = \App\Models\StockItem::where('tersedia', '<=', $lowStockThreshold)

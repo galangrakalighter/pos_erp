@@ -28,7 +28,7 @@ return new class extends Migration
         Schema::table('sales', function (Blueprint $table) {
             if (Schema::hasColumn('sales', 'status')) {
                 // Kembalikan ke enum nilai awal
-                $table->enum('status', ['Selesai', 'Belum dibayar', 'Dibatalkan'])->change();
+                $table->enum('status', ['Selesai', 'Belum approval', 'Dibatalkan'])->change();
             }
         });
     }

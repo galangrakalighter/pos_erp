@@ -401,7 +401,7 @@ function adminOverview() {
         
         statusBadge(st) {
             if (st === 'Selesai' || st === 'Dalam Proses-Sudah Dibayar') return 'bg-green-100 text-green-700';
-            if (st === 'Dalam Proses-Belum Dibayar' || st === 'Belum dibayar') return 'bg-orange-100 text-orange-700';
+            if (st === 'Dalam Proses-Belum Dibayar' || st === 'Belum approval') return 'bg-orange-100 text-orange-700';
             if (st === 'Dibatalkan') return 'bg-red-100 text-red-700';
             return 'bg-gray-100 text-gray-600';
         }
