@@ -837,6 +837,95 @@ class ClientStockController extends Controller
         }
     }
 
+    public function editSale($id, Request $request) {
+        try {
+            DB::beginTransaction();
+            
+            // 1. Ambil data transaksi lama
+            $sale = \App\Models\ClientSale::with('items')->findOrFail($id);
+            $client = \App\Models\Client::where('client_id', Auth::user()->client_id)->first();
+
+            // 2. KEMBALIKAN STOK LAMA (Penting agar stok tidak kacau saat edit berkali-kali)
+            foreach ($sale->items as $oldItem) {
+                \App\Models\ClientStockItem::where('sku', $oldItem->item_sku)
+                    ->increment('tersedia', $oldItem->quantity);
+            }
+
+            // 3. Update Header Transaksi
+            $sale->update([
+                'status'          => $request->status,
+                'total_items'     => $request->total_items,
+                'total_quantity'  => $request->total_quantity,
+                'total_amount'    => $request->total_amount,
+                'discount_type'   => $request->discount_type,
+                'discount_amount' => $request->discount_amount,
+                'notes'           => $request->notes,
+            ]);
+
+            // 4. Bersihkan Detail Item & History Lama (Hapus Sekali Saja)
+            \App\Models\ClientSaleItem::where('client_sale_id', $id)->delete();
+            \App\Models\StockItemHistory::where('changes->order_number', $request->order_number)->delete();
+
+            // 5. Masukkan Data Baru & Kurangi Stok Baru
+            foreach ($request->items as $item) {
+                // A. Simpan Item Penjualan Baru
+                \App\Models\ClientSaleItem::create([
+                    'client_sale_id'  => $id,
+                    'item_name'       => $item['item_name'],
+                    'item_sku'        => $item['item_sku'],
+                    'quantity'        => $item['quantity'],
+                    'unit_price'      => $item['unit_price'],
+                    'discount_amount' => $request->discount_amount, // Gunakan null coalescing
+                    'subtotal'        => $item['subtotal'],
+                ]);
+
+                // B. Kurangi Stok Client
+                $stockClient = \App\Models\ClientStockItem::where('sku', $item['item_sku'])->first();
+                if ($stockClient) {
+                    $stockClient->decrement('tersedia', $item['quantity']);
+                    
+                    // Refresh data stok setelah dikurangi untuk history yang akurat
+                    $stockClient->refresh(); 
+                }
+
+                // C. Catat History
+                $stockItem = \App\Models\StockItem::where('sku', $item['item_sku'])->first();
+                if ($stockItem) {
+                    \App\Models\StockItemHistory::create([
+                        'stock_item_id' => $stockItem->id,
+                        'nama_item'     => $item['item_name'],
+                        'tersedia'      => (int) $stockClient->tersedia,
+                        'action'        => 'Update Penjualan (Edit)',
+                        'changes'       => [
+                            'stock' => [
+                                'stock_lama'     => (int) ($stockClient->tersedia + $item['quantity']),
+                                'stok_berkurang' => (int) $item['quantity'],
+                                'stock_total'    => (int) $stockClient->tersedia,
+                            ],
+                            'catatan'      => "Update qty: {$item['quantity']} untuk client {$client->nama} - Order: {$request->order_number}",
+                            'client_id'    => $client->id,
+                            'client_name'  => $client->nama,
+                            'order_number' => $request->order_number,
+                            'sale_id'      => $sale->id
+                        ],
+                        'user' => $client->nama . ' (Client)'
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Transaksi berhasil diperbarui']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false, 
+                'message' => 'Gagal: ' . $e->getMessage(),
+                'line' => $e->getLine() // Membantu mencari lokasi error jika ada
+            ], 500);
+        }
+    }
+
     /**
      * Delete a sale record (Soft delete - mark as deleted but keep for omzet calculation)
      */

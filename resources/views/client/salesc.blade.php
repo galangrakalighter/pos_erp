@@ -461,7 +461,7 @@
                                     </button>
                                     <div x-show="openActionMenuIndex === idx" x-transition class="absolute right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 z-10">
                                         <button @click="showSaleDetail(sale); openActionMenuIndex = null" class="block w-full text-left px-4 py-2 hover:bg-[#eafbe6] rounded-t-xl">Detail</button>
-                                        <button x-show="sale.status === 'pending'" @click="$dispatch('edit-status', sale); openActionMenuIndex = null" class="block w-full text-left px-4 py-2 hover:bg-[#eafbe6] text-blue-600">Edit Status</button>
+                                        <button @click="$dispatch('edit-status', sale); openActionMenuIndex = null" class="block w-full text-left px-4 py-2 hover:bg-[#eafbe6] text-blue-600">Edit Status</button>
                                         <button @click="deleteSale(sale); openActionMenuIndex = null" class="block w-full text-left px-4 py-2 hover:bg-[#ffeaea] text-red-600 rounded-b-xl">Hapus</button>
                                     </div>
                                 </div>
@@ -1051,39 +1051,247 @@
     <div x-show="showEditStatusModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" x-cloak>
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 relative">
             <button @click="showEditStatusModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            
             <div class="text-center mb-6">
                 <h2 class="text-xl font-bold text-[#28C328]">Edit Status Transaksi</h2>
-                <p class="text-gray-600 text-sm">Ubah status transaksi</p>
+                <p class="text-gray-600 text-sm">Update status atau lanjut ke detail pesanan</p>
             </div>
             
-            <div class="mb-6">
-                <div class="bg-gray-50 rounded-lg p-4 mb-4">
-                    <div class="text-sm text-gray-600 mb-2">Order Number:</div>
-                    <div class="font-semibold text-gray-800" x-text="editStatusData.order_number"></div>
+            <div class="mb-6 space-y-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-xs text-gray-500 uppercase">Order Number:</div>
+                    <div class="font-bold text-gray-800" x-text="editStatusData.order_number"></div>
                 </div>
                 
-                <div class="mb-4">
-                    <label class="block font-semibold mb-2">Status Baru</label>
-                    <select x-model="editStatusData.newStatus" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700">
+                <div>
+                    <label class="block font-semibold mb-2 text-sm">Status Baru</label>
+                    <select x-model="editStatusData.newStatus" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700 focus:ring-2 focus:ring-[#28C328] outline-none">
                         <option value="pending">Pending</option>
                         <option value="completed">Selesai</option>
                         <option value="cancelled">Dibatalkan</option>
                     </select>
                 </div>
-                
-                <div x-show="editStatusError" class="text-red-500 text-sm mb-4" x-text="editStatusError"></div>
+                <div x-show="editStatusError" class="text-red-500 text-sm" x-text="editStatusError"></div>
             </div>
             
-            <div class="flex gap-3">
-                <button @click="showEditStatusModal = false" class="flex-1 rounded-lg bg-gray-200 text-gray-700 font-semibold py-3 hover:bg-gray-300 transition">Batal</button>
-                <button @click="updateSaleStatus()" :disabled="loading" class="flex-1 rounded-lg bg-[#28C328] text-white font-semibold py-3 hover:bg-[#22a322] transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span x-show="!loading">Update Status</span>
-                    <span x-show="loading" class="flex items-center justify-center">
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <div class="flex flex-col gap-3">
+                <button @click="updateSaleStatus()" :disabled="loading" class="w-full rounded-lg bg-[#28C328] text-white font-semibold py-3 hover:bg-[#22a322] transition disabled:opacity-50">
+                    <span x-show="!loading">Update Status Saja</span>
+                    <span x-show="loading">Memproses...</span>
+                </button>
+
+                <button @click="$dispatch('edit-status-2', editStatusData)" class="w-full rounded-lg bg-blue-50 text-blue-600 font-semibold py-3 border border-blue-100 hover:bg-blue-100 transition">
+                    Edit Detail Pesanan &rarr;
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showEditModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" x-cloak>
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-4xl mx-2 relative overflow-y-auto max-h-[90vh]">
+            <button @click="showEditModal = false" class="absolute top-4 left-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&larr;</button>
+            <button @click="showEditModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-blue-600">Edit Data Pesanan</h2>
+                <p class="text-gray-600 text-sm">Sesuaikan item, kuantitas, dan diskon pesanan</p>
+            </div>
+
+            <div x-show="editErrorMsg" class="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded-lg" x-text="editErrorMsg"></div>
+
+            <div class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
+                <h3 class="font-semibold text-gray-800 mb-2">Informasi Transaksi:</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div><span class="text-gray-600">Order Number:</span> <span class="font-semibold" x-text="editStatusData.order_number"></span></div>
+                    <div><span class="text-gray-600">Tanggal:</span> <span class="font-semibold" x-text="formatDate(editStatusData.sale_date)"></span></div>
+                    <div><span class="text-gray-600">Customer:</span> <span class="font-semibold" x-text="editStatusData.customer_name"></span></div>
+                    <div><span class="text-gray-600">Status:</span> <span class="font-semibold text-blue-600 uppercase" x-text="editStatusData.newStatus"></span></div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-100">
+                <h3 class="font-semibold text-blue-800 mb-3">Pengaturan Diskon</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block font-semibold mb-2 text-sm">Tipe Diskon</label>
+                        <select x-model="editStatusData.diskon_tipe" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <option value="rupiah">Rupiah</option>
+                            <option value="persen">Persen (%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-2 text-sm">Nilai Diskon</label>
+                        <input type="number" x-model="editStatusData.diskon_nilai" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="0">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" class="w-full rounded-lg bg-blue-500 text-white font-semibold py-2 text-sm hover:bg-blue-600 transition">Update Diskon</button>
+                    </div>
+                </div>
+                <div x-show="editStatusData.diskon_nilai > 0" class="mt-2 text-sm">
+                    <span class="text-blue-700">Diskon Terpasang: </span>
+                    <span x-show="editStatusData.diskon_tipe === 'rupiah'" class="font-semibold text-blue-800">Rp <span x-text="Number(editStatusData.diskon_nilai).toLocaleString('id-ID')"></span></span>
+                    <span x-show="editStatusData.diskon_tipe === 'persen'" class="font-semibold text-blue-800"><span x-text="editStatusData.diskon_nilai"></span>%</span>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-gray-800">Cari & Tambah Produk Baru:</h3>
+                    <div class="flex items-center bg-gray-50 rounded-lg px-3 py-2 border w-64 focus-within:ring-1 focus-within:ring-[#28C328]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
                         </svg>
-                        Updating...
+                        <input type="text" x-model="stockItemSearch" class="flex-1 bg-transparent border-none outline-none text-sm" placeholder="Cari SKU atau nama..." />
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto border rounded-xl max-h-60 shadow-sm">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="bg-[#28C328] text-white sticky top-0 text-[11px] uppercase tracking-wider">
+                                <th class="p-2 text-left w-12">Foto</th>
+                                
+                                <th class="p-2 text-left">Produk</th>
+                                
+                                <th class="p-2 text-left w-24">SKU</th>
+                                
+                                <th class="p-2 text-center w-16">Stok</th>
+                                
+                                <th class="p-2 text-right w-24">Harga</th>
+                                
+                                <th class="p-2 text-center w-20">Jumlah</th>
+                                
+                                <th class="p-2 text-right w-28">Subtotal</th>
+                                
+                                <th class="p-2 text-center w-24">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            <template x-for="item in filteredStockItems" :key="item.id">
+                                <tr class="hover:bg-green-50 transition">
+                                    <td class="p-2">
+                                        <img :src="item.gambar || '/images/default-item.svg'" class="w-8 h-8 rounded object-cover" alt="item">
+                                    </td>
+                                    
+                                    <td class="p-2 text-xs font-medium text-gray-800" x-text="item.nama"></td>
+                                    
+                                    <td class="p-2 font-mono text-[10px] text-gray-400 uppercase" x-text="item.sku"></td>
+                                    
+                                    <td class="p-2 text-center text-xs text-gray-600" x-text="Number(item.tersedia).toLocaleString('id-ID')"></td>
+                                    
+                                    <td class="p-2 text-right text-xs">
+                                        <span class="text-gray-400 text-[10px]">Rp</span><span x-text="Number(item.harga).toLocaleString('id-ID')"></span>
+                                    </td>
+                                    
+                                    <td class="p-2">
+                                        <input type="number" 
+                                            x-model.number="item.tempQty" 
+                                            x-init="item.tempQty = 0"
+                                            class="w-16 rounded border px-2 py-1 text-xs text-center outline-none focus:ring-1 focus:ring-[#28C328]" 
+                                            :class="item.tempQty > item.tersedia ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+                                            min="0" 
+                                            :max="item.tersedia"
+                                            placeholder="0">
+                                        <div x-show="item.tempQty > item.tersedia" class="text-[9px] text-red-500 mt-1 leading-tight">
+                                            Melebihi stok
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="p-2 text-right font-semibold text-xs">
+                                        <span x-show="item.tempQty > 0" class="text-green-700">
+                                            Rp<span x-text="(Number(item.harga) * Number(item.tempQty || 0)).toLocaleString('id-ID')"></span>
+                                        </span>
+                                        <span x-show="!item.tempQty || item.tempQty <= 0" class="text-gray-300">-</span>
+                                    </td>
+                                    
+                                    <td class="p-2 text-center">
+                                        <button type="button" 
+                                                @click="addItemToEditCart(item)" 
+                                                :disabled="!item.tempQty || item.tempQty <= 0 || item.tempQty > item.tersedia"
+                                                class="px-3 py-1 rounded text-[10px] font-bold transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                                :class="item.tempQty > 0 && item.tempQty <= item.tersedia ? 'bg-[#28C328] text-white hover:bg-[#22a322]' : 'bg-gray-200 text-gray-400'">
+                                            TAMBAH
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-green-50 rounded-lg p-4 mb-6 border border-green-100">
+                <h3 class="font-semibold text-green-800 mb-3">Item Dalam Pesanan:</h3>
+                <div x-show="editStatusData.items.length === 0" class="text-center text-gray-500 py-4 bg-white rounded-lg border border-dashed">
+                    Pesanan kosong
+                </div>
+                
+                <div x-show="editStatusData.items.length > 0" class="space-y-3">
+                    <template x-for="(cartItem, idx) in editStatusData.items" :key="idx">
+                        <div class="grid grid-cols-12 gap-3 items-center bg-white rounded-lg p-3 border border-green-200 shadow-sm">
+                            <div class="col-span-6 flex items-center gap-3">
+                                <img :src="cartItem.gambar || '/images/default-item.svg'" class="w-10 h-10 rounded object-cover">
+                                <div>
+                                    <div class="font-semibold text-gray-800 leading-tight text-sm" x-text="cartItem.nama"></div>
+                                    <div class="text-[11px] text-gray-500 uppercase tracking-wide">SKU: <span x-text="cartItem.sku"></span></div>
+                                </div>
+                            </div>
+                            <div class="col-span-3 text-sm text-gray-600 text-right">
+                                <span class="inline-block bg-gray-100 px-3 py-1 rounded-md font-bold text-gray-800 border mr-1">
+                                    <span x-text="cartItem.selectedQuantity"></span>
+                                </span>
+                                
+                                <span class="text-gray-400">x</span>
+                                <span x-text="'Rp' + Number(cartItem.harga).toLocaleString('id-ID')"></span>
+                            </div>
+                            <div class="col-span-2 text-right font-semibold text-green-800 text-sm">
+                                Rp<span x-text="(Number(cartItem.harga) * Number(cartItem.selectedQuantity)).toLocaleString('id-ID')"></span>
+                            </div>
+                            <div class="col-span-1 text-right">
+                                <button @click="removeItemFromEditCart(idx)" class="text-red-500 hover:text-red-700 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="bg-white rounded-xl border border-green-200 divide-y divide-green-100 shadow-sm">
+                        <div class="flex justify-between items-center px-4 py-3 text-sm">
+                            <span class="font-semibold text-gray-700">Subtotal</span>
+                            <span class="font-semibold text-gray-900">Rp<span x-text="calculateEditSubtotal().toLocaleString('id-ID')"></span></span>
+                        </div>
+                        <div x-show="editStatusData.diskon_nilai > 0" class="flex justify-between items-center px-4 py-3 text-sm text-red-600">
+                            <span>Diskon</span>
+                            <span class="font-medium">
+                                <span x-show="editStatusData.diskon_tipe === 'rupiah'">-Rp<span x-text="Number(editStatusData.diskon_nilai).toLocaleString('id-ID')"></span></span>
+                                <span x-show="editStatusData.diskon_tipe === 'persen'">-<span x-text="editStatusData.diskon_nilai"></span>%</span>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-b-xl">
+                            <span class="font-bold text-gray-800">Total Akhir</span>
+                            <span class="text-xl font-bold text-[#28C328]">Rp<span x-text="(calculateEditSubtotal() - calculateEditDiscount()).toLocaleString('id-ID')"></span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 rounded-lg p-4 mb-6 border border-yellow-100">
+                <h3 class="font-semibold text-yellow-800 mb-3 text-sm">Catatan Internal Perubahan:</h3>
+                <textarea x-model="editStatusData.notes" 
+                    class="w-full rounded-lg border border-yellow-200 px-3 py-2 text-sm focus:ring-yellow-400 focus:ring-1 outline-none" 
+                    rows="2" placeholder="Contoh: Customer minta tambah barang atau revisi diskon..."></textarea>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-4">
+                <button type="button" @click="showEditModal = false" class="flex-1 rounded-lg bg-gray-200 text-gray-700 font-semibold py-3 hover:bg-gray-300 transition">Batal</button>
+                <button type="button" @click="updateTransaction()" :disabled="loading || editStatusData.items.length === 0" 
+                    class="flex-1 rounded-lg bg-blue-600 text-white font-semibold py-3 hover:bg-blue-700 transition shadow-lg disabled:opacity-50">
+                    <span x-show="!loading">Simpan Perubahan Pesanan</span>
+                    <span x-show="loading" class="flex items-center justify-center">
+                        <svg class="animate-spin h-5 w-5 text-white mr-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Menyimpan...
                     </span>
                 </button>
             </div>
@@ -1288,7 +1496,8 @@ function salesHistory() {
         addErrorMsg: '', // Added for error messages
         showInvoiceModal: false, // Added for invoice modal
         showEditStatusModal: false, // Added for edit status modal
-        editStatusData: {}, // Added for edit status data
+        showEditModal: false, // Added for edit status modal
+        editStatusData: { items: [] }, // Added for edit status data
         editStatusError: '', // Added for edit status error
         showDeleteModal: false, // Added for delete confirmation modal
         deleteSaleData: null, // Added for delete sale data
@@ -1596,6 +1805,70 @@ function salesHistory() {
                 clearTimeout(this.searchTimeout);
             }
         },
+        calculateEditSubtotal() {
+            const items = this.editStatusData?.items || [];
+            return items.reduce((sum, i) => {
+                return sum + (Number(i.harga || 0) * Number(i.selectedQuantity || 0));
+            }, 0);
+        },
+
+        calculateEditDiscount() {
+            const subtotal = this.calculateEditSubtotal();
+            const nilai = Number(this.editStatusData?.diskon_nilai || 0);
+            
+            if (this.editStatusData?.diskon_tipe === 'persen') {
+                return (subtotal * nilai) / 100;
+            }
+            return nilai;
+        },
+        addItemToEditCart(item) {
+            const requestedQty = Number(item.tempQty) || 0;
+            const availableQty = Number(item.tersedia) || 0;
+
+            // 1. Validasi input
+            if (requestedQty <= 0) return;
+
+            // 2. Validasi stok (Cek apakah permintaan melebihi stok yang tampil di tabel)
+            if (requestedQty > availableQty) {
+                this.showErrorNotification('Stok Tidak Cukup', `Sisa stok hanya ${availableQty}`);
+                return;
+            }
+
+            // 3. LOGIKA PENGURANGAN VISUAL (State Management)
+            // Mengurangi stok yang tampil di tabel pencarian agar user tidak bisa input melebihi batas
+            item.tersedia = availableQty - requestedQty;
+
+            // 4. Masukkan ke keranjang edit
+            // Kita cari berdasarkan ID atau SKU
+            const exist = this.editStatusData.items.find(i => i.id === item.id || i.sku === item.sku);
+            
+            if (exist) {
+                // Jika item sudah ada di pesanan, tambahkan jumlahnya
+                exist.selectedQuantity = Number(exist.selectedQuantity) + requestedQty;
+            } else {
+                // Jika belum ada, push data baru (Gunakan spread operator agar data asli tetap aman)
+                this.editStatusData.items.push({
+                    ...item,
+                    harga: Number(item.harga) || 0,
+                    selectedQuantity: requestedQty,
+                    originalStock: availableQty // Simpan info stok asli untuk referensi jika dibutuhkan
+                });
+            }
+
+            // 5. Reset input sementara di tabel pencarian kembali ke 0
+            item.tempQty = 0;
+        },
+        removeItemFromEditCart(index) {
+            const itemToRemove = this.editStatusData.items[index];
+            if (itemToRemove) {
+                const originalItem = this.availableStockItems.find(s => s.sku === itemToRemove.sku);
+                
+                if (originalItem) {
+                    originalItem.tersedia = Number(originalItem.tersedia) + Number(itemToRemove.selectedQuantity);
+                }
+                this.editStatusData.items.splice(index, 1);
+            }
+        },
 
         generateOrderNumber() {
             const now = new Date();
@@ -1641,20 +1914,34 @@ function salesHistory() {
             }
         },
 
-        showEditStatusModal(sale) {
-            // Reset data dulu
-            this.editStatusData = {};
+        showEditStatusModalasdw(sale) {
             this.editStatusError = '';
-            this.showEditStatusModal = false;
-            this.$nextTick(() => {
-                this.editStatusData = {
-                    id: sale.id,
-                    order_number: sale.order_number,
-                    currentStatus: sale.status,
-                    newStatus: sale.status
-                };
-                this.showEditStatusModal = true;
-            });
+            this.editErrorMsg = '';
+            
+            // Inisialisasi data untuk kedua tahap
+            this.editStatusData = {
+                id: sale.id,
+                order_number: sale.order_number,
+                sale_date: sale.sale_date,
+                status: sale.status,
+                newStatus: sale.status,
+                customer_name: sale.customer_name || 'Umum',
+                
+                // Load item yang sudah ada (Deep Copy)
+                items: sale.items ? JSON.parse(JSON.stringify(sale.items.map(i => ({
+                    id: i.stock_id || i.id,
+                    nama: i.item_name,
+                    sku: i.item_sku,
+                    harga: i.unit_price,
+                    selectedQuantity: i.quantity
+                })))) : [],
+                
+                diskon_tipe: sale.discount_type || 'rupiah',
+                diskon_nilai: sale.discount_amount || 0,
+                notes: sale.notes || ''
+            };
+            
+            this.showEditStatusModal = true;
         },
 
         async updateSaleStatus() {
@@ -1704,6 +1991,52 @@ function salesHistory() {
             } finally {
                 this.loading = false;
             }
+        },
+
+        async updateTransaction() {
+            this.loading = true;
+            this.editErrorMsg = '';
+
+            const subtotal = this.calculateEditSubtotal();
+            const discountAmount = this.calculateEditDiscount();
+
+            const payload = {
+                order_number: this.editStatusData.order_number,
+                status: this.editStatusData.newStatus,
+                total_items: this.editStatusData.items.length,
+                total_quantity: this.editStatusData.items.reduce((t, i) => t + Number(i.selectedQuantity), 0),
+                total_amount: subtotal - discountAmount,
+                discount_type: this.editStatusData.diskon_tipe,
+                discount_amount: discountAmount,
+                notes: this.editStatusData.notes,
+                items: this.editStatusData.items.map(item => ({
+                    product_id: item.id, // TAMBAHKAN INI agar backend tahu ID produknya
+                    item_name: item.nama,
+                    item_sku: item.sku,
+                    quantity: Number(item.selectedQuantity),
+                    unit_price: Number(item.harga),
+                    subtotal: Number(item.harga) * Number(item.selectedQuantity)
+                }))
+            };
+
+            try {
+                const response = await fetch(`/client/sales/update/${this.editStatusData.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    this.showSuccessNotification('Update Berhasil', 'Seluruh data pesanan diperbarui.');
+                    this.showEditModal = false;
+                    this.showEditStatusModal = false;
+                    this.loadSales();
+                } else { throw new Error(result.message); }
+            } catch (e) { this.editErrorMsg = e.message; }
+            finally { this.loading = false; }
         },
 
         async deleteSale(sale) {
@@ -2293,17 +2626,91 @@ function salesHistory() {
             this.$el.addEventListener('edit-status', e => {
                 this.showEditStatusModalHandler(e.detail);
             });
+            this.$el.addEventListener('edit-status-2', e => {
+                this.showEditModalHandler(e.detail);
+            }); 
         },
 
         showEditStatusModalHandler(sale) {
+            
+            this.editStatusError = '';
+            this.editErrorMsg = '';
+
+            // 2. Mapping data secara lengkap untuk Tahap 1 & Tahap 2
             this.editStatusData = {
                 id: sale.id,
                 order_number: sale.order_number,
+                customer_name: sale.customer_name || (sale.customer ? sale.customer.name : 'Umum'),
+                sale_date: sale.sale_date,
                 currentStatus: sale.status,
-                newStatus: sale.status
+                newStatus: sale.status,
+                
+                // Memuat item: Pastikan formatnya sesuai dengan yang dibutuhkan loop x-for di Tahap 2
+                // Gunakan JSON.parse(JSON.stringify()) untuk membuat salinan mandiri (deep copy)
+                items: sale.items ? JSON.parse(JSON.stringify(sale.items.map(i => ({
+                    id: i.stock_id || i.product_id || i.id,
+                    nama: i.item_name || i.product_name || i.nama,
+                    sku: i.item_sku || i.sku || '',
+                    harga: Number(i.unit_price || i.price || i.harga || 0),
+                    selectedQuantity: Number(i.quantity || 1)
+                })))) : [],
+                
+                // Data Diskon & Catatan
+                diskon_tipe: sale.discount_type || 'rupiah',
+                diskon_nilai: Number(sale.discount_amount || 0),
+                notes: sale.notes || sale.internal_notes || ''
             };
-            this.editStatusError = '';
+
+            // 3. Tampilkan Modal Tahap 1
             this.showEditStatusModal = true;
+        },
+
+        async showEditModalHandler(sale){
+            await this.loadStockItems();
+            this.editStatusError = '';
+            this.editErrorMsg = '';
+
+            // 2. Mapping data secara lengkap untuk Tahap 1 & Tahap 2
+            this.editStatusData = {
+                id: sale.id,
+                order_number: sale.order_number,
+                customer_name: sale.customer_name || (sale.customer ? sale.customer.name : 'Umum'),
+                sale_date: sale.sale_date,
+                currentStatus: sale.status,
+                newStatus: sale.newStatus,
+                
+                // Memuat item: Pastikan formatnya sesuai dengan yang dibutuhkan loop x-for di Tahap 2
+                // Gunakan JSON.parse(JSON.stringify()) untuk membuat salinan mandiri (deep copy)
+                items: sale.items ? JSON.parse(JSON.stringify(sale.items.map(i => ({
+                    id: i.stock_id || i.product_id || i.id,
+                    nama: i.item_name || i.product_name || i.nama,
+                    sku: i.item_sku || i.sku || '',
+                    harga: Number(i.unit_price || i.price || i.harga || 0),
+                    selectedQuantity: Number(i.selectedQuantity || 1)
+                })))) : [],
+                
+                // Data Diskon & Catatan
+                diskon_tipe: sale.discount_type || 'rupiah',
+                diskon_nilai: Number(sale.discount_amount || 0),
+                notes: sale.notes || sale.internal_notes || ''
+            };
+
+            // 3. Tampilkan Modal Tahap 1
+            this.showEditModal = true;
+        },
+
+        formatDate(dateString) {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return new Intl.DateTimeFormat('id-ID', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                }).format(date);
+            } catch (e) {
+                return dateString;
+            }
         },
 
         // Calculation helper functions for detail modal

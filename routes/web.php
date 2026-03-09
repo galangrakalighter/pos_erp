@@ -265,6 +265,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('/client/sales', function () {
         return app(\App\Http\Controllers\ClientStockController::class)->addSale(request());
     })->name('client.sales.store');
+
+    Route::post('/client/sales/update/{id}', [\App\Http\Controllers\ClientStockController::class, 'editSale'])->name('client.sales.update');
     
     Route::get('/client/sales/{id}', function ($id) {
         return app(\App\Http\Controllers\ClientStockController::class)->getSaleDetail($id);
